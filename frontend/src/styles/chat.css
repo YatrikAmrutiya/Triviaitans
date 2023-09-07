@@ -1,0 +1,11 @@
+.message-container {
+    min-height: 200px; 
+    max-height: 250px; 
+    overflow-y: auto; 
+  }
+  
+
+  .chat-controller{
+    display: flex;
+    flex-direction: row;
+  }

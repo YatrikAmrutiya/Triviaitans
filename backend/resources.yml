@@ -1,0 +1,508 @@
+service: trivia-titans-resources
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  region: us-east-1
+  runtime: nodejs18.x
+
+resources:
+  Description: "This stack contains the cloud resources for the Trivia Titans app."
+  Resources:
+    # DynamoDB tables
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: users
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+    User2faTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: user2fa
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    GameQuestions:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: GameQuestions
+        AttributeDefinitions:
+          - AttributeName: gameId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: gameId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    GameAnswersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: game-answers
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: userName
+            AttributeType: S
+          - AttributeName: teamName
+            AttributeType: S
+          - AttributeName: teamId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+        - IndexName: userName-index
+          KeySchema:
+            - AttributeName: userName
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: teamName-index
+          KeySchema:
+            - AttributeName: teamName
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: teamId-index
+          KeySchema:
+            - AttributeName: teamId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+
+    Questions:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Questions
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    TeamsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: teams
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+#name of bucket here must be changed when merging with dev
+    ProfilePicturesBuckets:
+      Type: AWS::S3::Bucket
+      Properties:
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: ObjectWriter
+        BucketName: trivia-titans-sdp16-profile-photos
+        CorsConfiguration:
+          CorsRules:
+            - AllowedMethods:
+                - GET
+                - PUT
+                - POST
+              AllowedOrigins:
+                - "*"
+              AllowedHeaders:
+                - "*"
+
+    ProfilePictureBucketAllowBucketAccessPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref ProfilePicturesBuckets
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "PublicReadGetObject"
+              Action:
+                - "s3:GetObject"
+              Effect: Allow
+              Resource:
+                Fn::Join:
+                  - ""
+                  - - { "Fn::GetAtt": ["ProfilePicturesBuckets", "Arn"] }
+                    - "/*"
+              Principal: "*"
+    NotificationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: notifications
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: userId-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    TeamInvitationNotificationSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: TeamInvitationNotificationSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    TeamInvitationNotificationSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [TeamInvitationNotificationSQSQueue, Arn]
+        Queues:
+          - !Ref TeamInvitationNotificationSQSQueue
+
+    TeamInvitationEmailSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: TeamInvitationEmailSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    TeamInvitationEmailSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [TeamInvitationEmailSQSQueue, Arn]
+        Queues:
+          - !Ref TeamInvitationEmailSQSQueue
+
+    TeamInvitationSNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: TeamInvitationSNSTopic
+        DisplayName: team-invitation
+        Subscription:
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:TeamInvitationNotificationSQSQueue
+            Protocol: sqs
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:TeamInvitationEmailSQSQueue
+            Protocol: sqs
+    
+    UserAchievementsSNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: UserAchievementsSNSTopic
+        DisplayName: user-achievements
+
+    CHatMessages:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ChatMessages
+        AttributeDefinitions:
+          - AttributeName: messageId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: messageId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+    
+    NewGameAvailabilityNotificationSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: NewGameAvailabilityNotificationSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    NewGameAvailabilityNotificationSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [NewGameAvailabilityNotificationSQSQueue, Arn]
+        Queues:
+          - !Ref NewGameAvailabilityNotificationSQSQueue
+
+    NewGameAvailabilityEmailSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: NewGameAvailabilityEmailSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    NewGameAvailabilityEmailSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [NewGameAvailabilityEmailSQSQueue, Arn]
+        Queues:
+          - !Ref NewGameAvailabilityEmailSQSQueue
+
+    NewGameAvailabilitySNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: NewGameAvailabilitySNSTopic
+        DisplayName: new-game-availability
+        Subscription:
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:NewGameAvailabilityNotificationSQSQueue
+            Protocol: sqs
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:NewGameAvailabilityEmailSQSQueue
+            Protocol: sqs
+
+    GameInviteNotificationSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: GameInviteNotificationSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    GameInviteNotificationSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [GameInviteNotificationSQSQueue, Arn]
+        Queues:
+          - !Ref GameInviteNotificationSQSQueue
+
+    GameInviteEmailSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: GameInviteEmailSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    GameInviteEmailSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [GameInviteEmailSQSQueue, Arn]
+        Queues:
+          - !Ref GameInviteEmailSQSQueue
+
+    GameInviteSNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: GameInviteSNSTopic
+        DisplayName: game-invite
+        Subscription:
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:GameInviteNotificationSQSQueue
+            Protocol: sqs
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:GameInviteEmailSQSQueue
+            Protocol: sqs  
+    
+    TeamUpdateNotificationSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: TeamUpdateNotificationSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    TeamUpdateNotificationSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [TeamUpdateNotificationSQSQueue, Arn]
+        Queues:
+          - !Ref TeamUpdateNotificationSQSQueue
+
+    TeamUpdateEmailSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: TeamUpdateEmailSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    TeamUpdateEmailSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [TeamUpdateEmailSQSQueue, Arn]
+        Queues:
+          - !Ref TeamUpdateEmailSQSQueue
+
+    TeamUpdateSNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: TeamUpdateSNSTopic
+        DisplayName: team-update
+        Subscription:
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:TeamUpdateNotificationSQSQueue
+            Protocol: sqs
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:TeamUpdateEmailSQSQueue
+            Protocol: sqs 
+
+    AchievementUnlockedNotificationSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: AchievementUnlockedNotificationSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    AchievementUnlockedNotificationSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [AchievementUnlockedNotificationSQSQueue, Arn]
+        Queues:
+          - !Ref AchievementUnlockedNotificationSQSQueue
+
+    AchievementUnlockedEmailSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: AchievementUnlockedEmailSQSQueue
+        MaximumMessageSize: 262144
+        VisibilityTimeout: 900
+
+    AchievementUnlockedEmailSQSQueueAccessToSNSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow-SNS-SendMessage"
+              Effect: Allow
+              Principal:
+                AWS: "*"
+                Service: "sns.amazonaws.com"
+              Action:
+                - "sqs:SendMessage"
+              Resource:
+                Fn::GetAtt: [AchievementUnlockedEmailSQSQueue, Arn]
+        Queues:
+          - !Ref AchievementUnlockedEmailSQSQueue
+
+    AchievementUnlockedSNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: AchievementUnlockedSNSTopic
+        DisplayName: achievement-unlocked
+        Subscription:
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:AchievementUnlockedNotificationSQSQueue
+            Protocol: sqs
+          - Endpoint: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:AchievementUnlockedEmailSQSQueue
+            Protocol: sqs 
+      
+

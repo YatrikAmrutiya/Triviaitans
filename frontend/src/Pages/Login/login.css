@@ -1,0 +1,5 @@
+.form-inline-column {  
+    display: flex;
+    flex-flow: column wrap !important;
+    align-items: center;
+  }

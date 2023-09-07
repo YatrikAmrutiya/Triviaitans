@@ -1,0 +1,507 @@
+service: trivia-titans-backend
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  region: us-east-1
+  runtime: nodejs18.x
+  iam:
+    role: arn:aws:iam::${env:AWS_ACCOUNT_ID}:role/LabRole
+  environment:
+    FIREBASE_SERVICE_ACCOUNT_BASE64_ENCODED: ${env:FIREBASE_SERVICE_ACCOUNT_BASE64_ENCODED}
+    FRONTEND_BASE_URL: ${env:FRONTEND_BASE_URL}
+    SES_SENDER_ADDRESS: ${env:SES_SENDER_ADDRESS}
+    OPEN_AI_KEY: ${env:OPEN_AI_KEY}
+  httpApi:
+    cors: true
+    payload: "2.0"
+    disableDefaultEndpoint: false
+    authorizers:
+      appAuthorizer:
+        resultTtlInSeconds: 0
+        functionName: appAuthorizer
+        type: request
+        identitySource:
+          - $request.header.authorization
+      adminAuthorizer:
+        resultTtlInSeconds: 0
+        functionName: adminAuthorizer
+        type: request
+        identitySource:
+          - $request.header.authorization
+      firebaseAuthorizer:
+        resultTtlInSeconds: 0
+        functionName: firebaseAuthorizer
+        type: request
+        identitySource:
+          - $request.header.authorization
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+package:
+  individually: true
+
+custom:
+  serverless-offline:
+    httpPort: 4000
+  esbuild:
+    bundle: true
+    minify: true
+    keepOutputDirectory: true
+    concurrency: 1
+
+functions:
+  firebaseAuthorizer:
+    handler: src/authorizer/firebase-authorizer.handler
+
+  appAuthorizer:
+    handler: src/authorizer/app-authorizer.handler
+
+  adminAuthorizer:
+    handler: src/authorizer/admin-authorizer.handler
+
+  register:
+    handler: src/apis/auth/register.handler
+    events:
+      - httpApi:
+          path: /auth/register
+          method: post
+          authorizer:
+            name: firebaseAuthorizer
+
+  get-2fa:
+    handler: src/apis/auth/get-2fa.handler
+    events:
+      - httpApi:
+          path: /auth/2fa
+          method: get
+          authorizer:
+            name: firebaseAuthorizer
+
+  set-2fa:
+    handler: src/apis/auth/set-2fa.handler
+    events:
+      - httpApi:
+          path: /auth/2fa
+          method: post
+          authorizer:
+            name: firebaseAuthorizer
+
+  validate-2fa:
+    handler: src/apis/auth/validate-2fa.handler
+    events:
+      - httpApi:
+          path: /auth/2fa/validate
+          method: post
+          authorizer:
+            name: firebaseAuthorizer
+
+  logout:
+    handler: src/apis/auth/logout.handler
+    events:
+      - httpApi:
+          path: /auth/logout
+          method: post
+          authorizer:
+            name: firebaseAuthorizer
+
+  profile-edit:
+    handler: src/apis/profile/profile-edit.handler
+    events:
+      - httpApi:
+          path: /profile/profile-edit
+          method: patch
+          authorizer:
+            name: appAuthorizer
+
+  profile-pic:
+    handler: src/apis/profile/profile-pic.handler
+    events:
+      - httpApi:
+          path: /profile/profile-pic
+          method: put
+          authorizer:
+            name: appAuthorizer
+
+  save-notification-settings:
+    handler: src/apis/profile/save-notification-settings.handler
+    events:
+      - httpApi:
+          path: /profile/save-notification-settings
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  get-user:
+    handler: src/apis/profile/get-user.handler
+    events:
+      - httpApi:
+          path: /profile/get-user
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  get-user-by-email:
+    handler: src/apis/profile/get-user-by-email.handler
+    events:
+      - httpApi:
+          path: /profile/get-user/{email}
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  get-user-stats:
+    handler: src/apis/profile/get-user-stats.handler
+    events:
+      - httpApi:
+          path: /profile/get-user-stats
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  get-user-stats-by-username:
+    handler: src/apis/profile/get-user-stats-by-username.handler
+    events:
+      - httpApi:
+          path: /profile/get-user-stats/{userName}
+          method: get
+          authorizer:
+            name: appAuthorizer
+  
+  compute-achievements:
+    handler: src/lambdas/achievements/compute-achievements.handler
+    events:
+      - sns:
+          arn: arn:aws:sns:${self:provider.region}:${env:AWS_ACCOUNT_ID}:UserAchievementsSNSTopic
+
+  getGame:
+    handler: src/apis/admin/getGame.handler
+    events:
+      - httpApi:
+          path: /games
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  createQuestion:
+    handler: src/apis/admin/createQuestion.handler
+    events:
+      - httpApi:
+          path: /questions
+          method: post
+          authorizer:
+            name: adminAuthorizer
+
+  getQuestions:
+    handler: src/apis/admin/getQuestions.handler
+    events:
+      - httpApi:
+          path: /questions
+          method: get
+          authorizer:
+            name: adminAuthorizer
+
+  updateQuestion:
+    handler: src/apis/admin/updateQuestion.handler
+    events:
+      - httpApi:
+          path: /questions/{id}
+          method: put
+          authorizer:
+            name: adminAuthorizer
+
+  deleteQuestion:
+    handler: src/apis/admin/deleteQuestion.handler
+    events:
+      - httpApi:
+          path: /questions/{id}
+          method: delete
+          authorizer:
+            name: adminAuthorizer
+
+  createGame:
+    handler: src/apis/admin/createGame.handler
+    events:
+      - httpApi:
+          path: /games
+          method: post
+          authorizer:
+            name: adminAuthorizer
+
+  updateGame:
+    handler: src/apis/admin/updateGame.handler
+    events:
+      - httpApi:
+          path: /games/{gameId}
+          method: put
+          authorizer:
+            name: adminAuthorizer
+
+  deleteGame:
+    handler: src/apis/admin/deleteGame.handler
+    events:
+      - httpApi:
+          path: /games/{gameId}
+          method: delete
+          authorizer:
+            name: adminAuthorizer
+
+  autosuggest-teamname:
+    handler: src/apis/team/autosuggest-team-name.handler
+    events:
+      - httpApi:
+          path: /team/suggest-name
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  create-team:
+    handler: src/apis/team/create-team.handler
+    events:
+      - httpApi:
+          path: /team/create-team
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  remove-member:
+    handler: src/apis/team/remove-member.handler
+    events:
+      - httpApi:
+          path: /team/remove-member
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  promote-to-admin:
+    handler: src/apis/team/promote-to-admin.handler
+    events:
+      - httpApi:
+          path: /team/promote-to-admin
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  leave-team:
+    handler: src/apis/team/leave-team.handler
+    events:
+      - httpApi:
+          path: /team/leave-team
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  get-teams:
+    handler: src/apis/team/get-teams.handler
+    events:
+      - httpApi:
+          path: /team/get-teams
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  get-team-members:
+    handler: src/apis/team/get-team-members.handler
+    events:
+      - httpApi:
+          path: /team/get-team-members/{teamId} 
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  get-team-statistics:
+    handler: src/apis/team/get-team-statistics.handler
+    events:
+      - httpApi:
+          path: /team/get-team-statistics/{teamId}
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  get-users:
+    handler: src/apis/team/get-users.handler
+    events:
+      - httpApi:
+          path: /team/get-users
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  joinGame:
+    handler: src/apis/lobby/join-game.handler
+    events:
+      - httpApi:
+          path: /join
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  invite-member:
+    handler: src/apis/team/invite-member.handler
+    events:
+      - httpApi:
+          path: /team/invite
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  respond-to-invite:
+    handler: src/apis/team/respond-to-invite.handler
+    events:
+      - httpApi:
+          path: /team/invite/respond
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  get-notifications:
+    handler: src/apis/notifications/get-notifications.handler
+    events:
+      - httpApi:
+          path: /notifications
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  get-current-question:
+    handler: src/apis/game/get-current-question.handler
+    events:
+      - httpApi:
+          path: /game/{gameId}/current-questions
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  get-answer-to-current-question:
+    handler: src/apis/game/get-answer-to-current-question.handler
+    events:
+      - httpApi:
+          path: /game/{gameId}/current-answer
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  answer-game-question:
+    handler: src/apis/game/answer-game-question.handler
+    events:
+      - httpApi:
+          path: /game/{gameId}/answer
+          method: post
+          authorizer:
+            name: appAuthorizer
+
+  get-game-statistics:
+    handler: src/apis/game/get-game-statistics.handler
+    events:
+      - httpApi:
+          path: /game/{gameId}/statistics
+          method: get
+          authorizer:
+            name: appAuthorizer
+
+  TeamInvitationNotification:
+    handler: src/lambdas/notifications/team-invitation-notification.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:TeamInvitationNotificationSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+
+  TeamInvitiationEmail:
+    handler: src/lambdas/notifications/team-invitation-email.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:TeamInvitationEmailSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+  
+  NewGameAvailabilityNotification:
+    handler: src/lambdas/notifications/new-game-availability-notification.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:NewGameAvailabilityNotificationSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+
+  NewGameAvailabilityEmail:
+    handler: src/lambdas/notifications/new-game-availability-email.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:NewGameAvailabilityEmailSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+
+  GameInviteNotification:
+    handler: src/lambdas/notifications/game-invite-notification.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:GameInviteNotificationSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+
+  GameInviteEmail:
+    handler: src/lambdas/notifications/game-invite-email.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:GameInviteEmailSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+
+  TeamUpdateNotification:
+    handler: src/lambdas/notifications/team-update-notification.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:TeamUpdateNotificationSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+
+  TeamUpdateEmail:
+    handler: src/lambdas/notifications/team-update-email.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:TeamUpdateEmailSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+
+  AchievementUnlockedNotification:
+    handler: src/lambdas/notifications/achievement-unlocked-notification.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:AchievementUnlockedNotificationSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+
+  AchievementUnlockedEmail:
+    handler: src/lambdas/notifications/achievement-unlocked-email.handler
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:AchievementUnlockedEmailSQSQueue
+          maximumBatchingWindow: 2
+          batchSize: 1
+          enabled: true
+          
+  hello:
+    handler: src/apis/hello-world.handler
+    events:
+      - httpApi:
+          path: /hello
+          method: post
+
+  chat-ingame:
+    handler: src/apis/chat/chat-feature.handler
+
+  VirtualAssistance:
+    handler: src/apis/virtual-assistance/virtual-assistance.handler
+
+resources:
+  Description: "This stack contains the backend functions for the Trivia Titans app."

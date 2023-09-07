@@ -1,0 +1,74 @@
+stages:
+  - build
+  - test
+  - deploy
+
+# Build and deploy our frontend to firebase hosting when it gets merged to the develop branch.
+build-and-deploy-frontend-dev:
+  stage: deploy
+  environment:
+    name: dev
+    url: https://frontend-tcazkx2zpa-ue.a.run.app
+  image: google/cloud-sdk:alpine
+  only:
+    - dev
+  script:
+    - export CI=false
+    - cd frontend
+    - echo "export const BASEURL = \"$BACKEND_DEV_URL\";" > src/utils/consts.js
+    - echo $CLOUD_RUN_SERVICE_ACCOUNT > /tmp/$CI_PIPELINE_ID.json
+    - gcloud auth activate-service-account --key-file /tmp/$CI_PIPELINE_ID.json
+    - gcloud config set project trivia-titans-sdp-16
+    - gcloud builds submit --tag us-east1-docker.pkg.dev/trivia-titans-sdp-16/trivia-titans-sdp-16/frontend --suppress-logs
+    - gcloud run deploy frontend --image us-east1-docker.pkg.dev/trivia-titans-sdp-16/trivia-titans-sdp-16/frontend --platform managed --region us-east1 --allow-unauthenticated --quiet
+  after_script:
+    - rm /tmp/$CI_PIPELINE_ID.json
+
+# Build the frontend and test it EVERYTIME there is a pull request created for the develop branch.
+test-frontend-build-dev:
+  image: node:18.0.0
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - export CI=false
+    - cd frontend
+    - echo "export const BASEURL = \"$BACKEND_DEV_URL\";" >> src/components/Url.js
+    - npm install
+    - npm run build
+
+build-and-deploy-backend-dev:
+  stage: deploy
+  environment:
+    name: dev
+  image: node:18.0.0
+  only:
+    - dev
+  script:
+    - export CI=false
+    - export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+    - export FIREBASE_SERVICE_ACCOUNT_BASE64_ENCODED=$FIREBASE_SERVICE_ACCOUNT_BASE64_ENCODED
+    - export FRONTEND_BASE_URL=$FRONTEND_DEV_URL
+    - export SES_SENDER_ADDRESS=$SES_SENDER_ADDRESS
+    - export OPEN_AI_KEY=$OPEN_AI_KEY
+    - cd backend
+    - npm install
+    - npx serverless deploy --config resources.yml
+    - npx serverless deploy --config lambdas.yml
+
+test-backend-build-dev:
+  image: node:18.0.0
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - export CI=false
+    - export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+    - export FIREBASE_SERVICE_ACCOUNT_BASE64_ENCODED=$FIREBASE_SERVICE_ACCOUNT_BASE64_ENCODED
+    - export FRONTEND_BASE_URL=$FRONTEND_DEV_URL
+    - export SES_SENDER_ADDRESS=$SES_SENDER_ADDRESS
+    - export OPEN_AI_KEY=$OPEN_AI_KEY
+    - cd backend
+    - npm install
+    - npx serverless package --config resources.yml
+    - npx serverless package --config lambdas.yml

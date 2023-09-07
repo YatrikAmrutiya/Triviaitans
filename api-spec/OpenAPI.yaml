@@ -1,0 +1,62 @@
+openapi: "3.0.2"
+info:
+  title: Trivia Titans
+  version: "1.0"
+servers:
+  - url: https://api.server.test/v1
+security:
+  - bearerAuth: []
+
+paths:
+  /login:
+    post:
+      tags:
+        - auth
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Login"
+      responses:
+        "200":
+          description: OK
+  /register:
+    post:
+      tags:
+        - auth
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Register"
+      responses:
+        "200":
+          description: OK
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Register:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        password:
+          type: string
+        email:
+          type: string
+    Login:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string

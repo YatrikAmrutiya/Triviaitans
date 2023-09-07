@@ -1,0 +1,29 @@
+{
+    "yaml.schemas": {
+        "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/schemas/v3.1/schema.json": "file:///Users/karansingh/DalU/5410/csci5410-summer-23-sdp16/api-spec/OpenAPI.yml",
+        "https://raw.githubusercontent.com/lalcebo/json-schema/master/serverless/reference.json": [
+            "file:///Users/karansingh/DalU/5410/csci5410-summer-23-sdp16/backend/resources.yml",
+            "file:///Users/karansingh/DalU/5410/csci5410-summer-23-sdp16/backend/lambdas.yml",
+            "file:///c%3A/Users/trushi/OneDrive/Documents/Dalhousie%20Semesters/Second%20Semester/Serverless/REPO/csci5410-summer-23-sdp16/backend/lambdas.yml"
+        ]
+    },
+    "conventionalCommits.scopes": [
+        "gitignore",
+        "build",
+        "ci",
+        "dev",
+        "lint",
+        "auth",
+        "lib",
+        "refactor",
+        "resources",
+        "dependencies",
+        "teams",
+        "game-management",
+        "in-game",
+        "statistics",
+        "admin",
+        "css",
+        "achievements"
+    ]
+}

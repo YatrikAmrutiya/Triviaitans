@@ -1,0 +1,10 @@
+{
+    "yaml.schemas": {
+        "https://raw.githubusercontent.com/lalcebo/json-schema/master/serverless/reference.json": [
+            "file:///Users/karansingh/DalU/5410/csci5410-summer-23-sdp16/backend/lambdas.yaml",
+            "file:///c%3A/Users/AVuser/Desktop/Dalhousie%20University/CSCI%205410/Project/csci5410-summer-23-sdp16/backend/resources.yml",
+            "file:///c%3A/Users/AVuser/Desktop/Dalhousie%20University/CSCI%205410/Project/csci5410-summer-23-sdp16/backend/lambdas.yml",
+            "file:///e%3A/DalhousieMACS/MACS_TERM_3/serverless/Group%20Project/group_project/csci5410-summer-23-sdp16/backend/resources.yml"
+        ]
+    }
+}

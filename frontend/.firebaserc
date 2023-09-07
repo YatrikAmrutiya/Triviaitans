@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "trivia-titans-sdp-16"
+  },
+  "targets": {
+    "trivia-titans-sdp-16": {
+      "hosting": {
+        "prod": [
+          "trivia-titans-sdp-16-prod"
+        ],
+        "dev": [
+          "trivia-titans-sdp-16"
+        ]
+      }
+    }
+  }
+}
